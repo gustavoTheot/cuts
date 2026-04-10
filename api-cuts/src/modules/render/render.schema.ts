@@ -36,6 +36,8 @@ export const RenderRequestSchema = z.object({
   segments: z.array(TranscriptSegmentSchema).min(1),
   /** Subtitle visual style */
   subtitleStyle: SubtitleStyleSchema.default({}),
+  /** When true, subtitles are not burned into the video */
+  noSubtitles: z.boolean().default(false),
   /** Output resolution (default: 1080×1920 — standard portrait) */
   resolution: ResolutionSchema.default({}),
 }).refine((d) => d.tempo_final > d.tempo_inicial, {

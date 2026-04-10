@@ -76,6 +76,50 @@ export async function listCuts(
   };
 }
 
+// ── Get by ID ─────────────────────────────────────────────────────────────────
+
+export async function getCutById(id: string): Promise<CutItem> {
+  const [row] = db.select().from(cuts).where(eq(cuts.id, id)).all();
+  if (!row) throw new AppError(404, `Cut ${id} not found`);
+
+  const storageKey = row.renderedStorageKey ?? row.rawStorageKey ?? null;
+  const presignedUrl = await presign(storageKey);
+
+  return {
+    id: row.id,
+    sourceVideoId: row.sourceVideoId,
+    title: row.title,
+    description: row.description ?? null,
+    tags: JSON.parse(row.tagsJson) as string[],
+    startMs: row.startMs,
+    endMs: row.endMs,
+    durationMs: row.durationMs,
+    status: row.status,
+    presignedUrl,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+// ── Update ────────────────────────────────────────────────────────────────────
+
+export async function updateCut(
+  id: string,
+  data: { title?: string; description?: string | null }
+): Promise<CutItem> {
+  const [row] = db.select().from(cuts).where(eq(cuts.id, id)).all();
+  if (!row) throw new AppError(404, `Cut ${id} not found`);
+
+  const updates: Partial<typeof cuts.$inferInsert> = {};
+  if (data.title !== undefined) updates.title = data.title;
+  if (data.description !== undefined) updates.description = data.description;
+
+  if (Object.keys(updates).length > 0) {
+    db.update(cuts).set(updates).where(eq(cuts.id, id)).run();
+  }
+
+  return getCutById(id);
+}
+
 // ── Delete ────────────────────────────────────────────────────────────────────
 
 export async function deleteCut(id: string): Promise<void> {

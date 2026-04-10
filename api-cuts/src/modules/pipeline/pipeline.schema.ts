@@ -17,6 +17,8 @@ export const PipelineRequestSchema = z.object({
   maxDurationMs: z.coerce.number().int().min(15_000).max(90_000).default(60_000),
   /** Subtitle visual style overrides */
   subtitleStyle: SubtitleStyleSchema.optional(),
+  /** When true, subtitles are burned into the video */
+  subtitles: z.boolean().default(false),
   /** Override LLM model */
   model: z.string().optional(),
 });

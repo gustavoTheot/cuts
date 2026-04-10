@@ -2,11 +2,20 @@ import type { FastifyPluginAsync } from "fastify";
 import {
   ListCutsQuerySchema,
   ListCutsResponseSchema,
+  CutItemSchema,
+  GetCutParamsSchema,
+  UpdateCutParamsSchema,
+  UpdateCutBodySchema,
   DeleteCutParamsSchema,
   DeleteCutResponseSchema,
   ErrorResponseSchema,
 } from "./cuts.schema.js";
-import { listCutsHandler, deleteCutHandler } from "./cuts.handler.js";
+import {
+  listCutsHandler,
+  getCutHandler,
+  updateCutHandler,
+  deleteCutHandler,
+} from "./cuts.handler.js";
 
 const cutsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get("/cuts", {
@@ -18,6 +27,29 @@ const cutsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     handler: listCutsHandler,
+  });
+
+  fastify.get("/cuts/:id", {
+    schema: {
+      params: GetCutParamsSchema,
+      response: {
+        200: CutItemSchema,
+        404: ErrorResponseSchema,
+      },
+    },
+    handler: getCutHandler,
+  });
+
+  fastify.patch("/cuts/:id", {
+    schema: {
+      params: UpdateCutParamsSchema,
+      body: UpdateCutBodySchema,
+      response: {
+        200: CutItemSchema,
+        404: ErrorResponseSchema,
+      },
+    },
+    handler: updateCutHandler,
   });
 
   fastify.delete("/cuts/:id", {

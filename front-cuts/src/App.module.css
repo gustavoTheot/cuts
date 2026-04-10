@@ -1,0 +1,107 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(13, 13, 15, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logoIcon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.logoName {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.logoSub {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+/* ── Main ────────────────────────────────────────────────────────────────────── */
+
+.main {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* ── Top section ─────────────────────────────────────────────────────────────── */
+
+.topSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pageTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.topGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.formPanel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+}
+
+.progressPanel {
+  /* ProgressPanel has its own wrapper */
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .topGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .main {
+    padding: 20px 16px 48px;
+  }
+}

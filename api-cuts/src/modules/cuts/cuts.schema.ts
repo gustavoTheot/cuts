@@ -39,6 +39,23 @@ export const DeleteCutResponseSchema = z.object({
   success: z.boolean(),
 });
 
+// ── Get by ID ─────────────────────────────────────────────────────────────────
+
+export const GetCutParamsSchema = z.object({
+  id: z.string().min(1),
+});
+
+// ── Update ────────────────────────────────────────────────────────────────────
+
+export const UpdateCutParamsSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const UpdateCutBodySchema = z.object({
+  title: z.string().min(1).max(300).optional(),
+  description: z.string().max(2000).nullable().optional(),
+});
+
 export const ErrorResponseSchema = z.object({
   statusCode: z.number(),
   error: z.string(),
@@ -47,3 +64,4 @@ export const ErrorResponseSchema = z.object({
 
 export type ListCutsQuery = z.infer<typeof ListCutsQuerySchema>;
 export type CutItem = z.infer<typeof CutItemSchema>;
+export type UpdateCutBody = z.infer<typeof UpdateCutBodySchema>;
