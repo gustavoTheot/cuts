@@ -32,43 +32,72 @@ function buildSystemPrompt(
   maxDurationMs: number,
   instructions?: string
 ): string {
-  const minSec = (minDurationMs / 1000).toFixed(0);
-  const maxSec = (maxDurationMs / 1000).toFixed(0);
+  const minSec = Math.round(minDurationMs / 1000);
+  const maxSec = Math.round(maxDurationMs / 1000);
+  const targetSec = maxSec; // user-selected value is the intended duration
+  const today = new Date().toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 
-  return `Você é um especialista em edição de vídeos para redes sociais (YouTube Shorts, TikTok, Reels).
+  const instructionsBlock = instructions
+    ? `## Direcionamento temático do usuário
+"${instructions}"
 
-Sua tarefa é analisar a transcrição de um vídeo com marcadores de tempo e identificar os melhores momentos para criar cortes curtos e envolventes.
+IMPORTANTE: Interprete isso como um TEMA ou INTENÇÃO — não como uma string literal a encontrar no texto.
+Selecione momentos que se conectem a essa ideia, mesmo que com vocabulário diferente ou abordagem indireta.
+Se um segmento trata do assunto de forma tangencial mas relevante, prefira-o a um que não trate do tema.`
+    : `## Critério de seleção padrão
+Priorize momentos que combinem: alto impacto emocional (humor, surpresa, revelação, controvérsia construtiva)
++ relevância para o público atual + densidade de informação. Evite momentos introdutórios ou de transição.`;
 
-## Regras obrigatórias
-- Retorne EXATAMENTE um objeto JSON válido com a chave "cortes" contendo um array de cortes.
-- Selecione no máximo ${maxCuts} cortes.
-- Cada corte deve ter duração entre ${minSec}s e ${maxSec}s.
-- Os tempos (tempo_inicial, tempo_final) devem ser em milissegundos.
-- Os tempos devem corresponder a momentos reais da transcrição — não invente timestamps.
-- Cada corte deve ser autocontido (começa e termina em uma ideia completa).
-- Não sobreponha cortes.
+  return `Você é um editor sênior especializado em cortes virais para YouTube Shorts, TikTok e Instagram Reels.
 
-## Formato JSON obrigatório (não adicione nada fora deste JSON):
+Hoje é ${today}. Use seu conhecimento sobre eventos recentes, tendências culturais e o que está em alta no debate público para avaliar o potencial de cada momento — escolha os trechos mais relevantes para o mundo agora, não apenas os mais "interessantes" isoladamente.
+
+## Sua missão
+Analisar a transcrição e selecionar exatamente até ${maxCuts} momento(s) com maior potencial de engajamento viral.
+
+## O que faz um corte viral
+1. **Gancho imediato** — começa com uma afirmação forte, pergunta provocativa ou dado surpreendente
+2. **Autonomia** — faz sentido completo sem o contexto do restante do vídeo
+3. **Relevância atual** — conecta-se a algo que as pessoas estão discutindo ou experienciando agora
+4. **Arco completo** — começa e termina em pontos naturais de fala (nunca no meio de uma frase)
+5. **Densidade** — cada segundo carrega informação ou emoção útil, sem rodeios
+
+## Regras de duração — CRÍTICO, não negocie isso
+- Duração-alvo de CADA corte: aproximadamente **${targetSec} segundos**
+- Duração MÍNIMA absoluta: ${minSec}s — cortes mais curtos serão rejeitados automaticamente
+- Duração MÁXIMA absoluta: ${maxSec}s
+- Tempos em **milissegundos** (ex.: 1 min 30 s = 90000)
+- Use os timestamps da transcrição como âncora. Expanda o trecho para cima/baixo para atingir a duração-alvo, desde que não ultrapasse ${maxSec}s
+- NÃO invente timestamps que não existam na transcrição
+- NÃO sobreponha cortes entre si
+
+## Formato de saída — retorne APENAS o JSON abaixo, sem texto antes ou depois:
 {
   "cortes": [
     {
-      "tempo_inicial": <número em ms>,
-      "tempo_final": <número em ms>,
-      "titulo_sugerido": "<título curto e chamativo, máx 100 chars>",
-      "tags": ["<tag1>", "<tag2>", "..."],
-      "justificativa": "<motivo resumido da escolha>"
+      "tempo_inicial": <ms>,
+      "tempo_final": <ms>,
+      "titulo_sugerido": "<título estilo clickbait inteligente, máx 100 chars, em português>",
+      "tags": ["<tag1>", "<tag2>", "<tag3>"],
+      "justificativa": "<por que este momento é relevante agora e tem potencial viral>"
     }
   ]
 }
-${
-  instructions
-    ? `\n## Instrução específica do usuário\n${instructions}`
-    : "\n## Critério padrão\nPriorize momentos de alto impacto: insights valiosos, humor, surpresas, ou explicações didáticas concisas."
-}`;
+
+${instructionsBlock}`;
 }
 
-function buildUserMessage(formattedTranscript: string): string {
-  return `Analise a transcrição abaixo e identifique os melhores momentos para cortes.\n\n## Transcrição\n${formattedTranscript}`;
+function buildUserMessage(formattedTranscript: string, maxSec: number): string {
+  return `Analise a transcrição abaixo e selecione os melhores momentos para cortes de aproximadamente ${maxSec}s cada.
+
+Lembre-se: expanda os trechos para atingir a duração-alvo quando necessário — prefira cortes mais completos a cortes curtos demais.
+
+## Transcrição
+${formattedTranscript}`;
 }
 
 // ── JSON extraction ───────────────────────────────────────────────────────────
@@ -128,7 +157,7 @@ export async function analyzeTranscript(
     maxDurationMs,
     instructions
   );
-  const userMessage = buildUserMessage(formattedTranscript);
+  const userMessage = buildUserMessage(formattedTranscript, Math.round(maxDurationMs / 1000));
 
   // 3. Call LLM via OpenRouter
   let rawContent: string;
@@ -142,7 +171,7 @@ export async function analyzeTranscript(
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
-      temperature: 0.3,
+      temperature: 0.5,
     });
 
     const choice = completion.choices[0];

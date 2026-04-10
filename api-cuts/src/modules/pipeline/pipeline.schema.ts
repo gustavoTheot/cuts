@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { SubtitleStyleSchema } from "../render/render.schema.js";
 
+export const ManualCutSchema = z.object({
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().positive(),
+  title: z.string().min(1).max(300).optional(),
+}).refine((d) => d.endMs > d.startMs, {
+  message: "endMs must be greater than startMs",
+  path: ["endMs"],
+});
+
 export const PipelineRequestSchema = z.object({
   url: z
     .string()
@@ -19,6 +28,8 @@ export const PipelineRequestSchema = z.object({
   subtitleStyle: SubtitleStyleSchema.optional(),
   /** When true, subtitles are burned into the video */
   subtitles: z.boolean().default(false),
+  /** Manual cut — when provided, skips AI and captures exactly this segment */
+  manualCut: ManualCutSchema.optional(),
   /** Override LLM model */
   model: z.string().optional(),
 });
@@ -45,3 +56,4 @@ export interface ReadyCut {
 }
 
 export type PipelineRequest = z.infer<typeof PipelineRequestSchema>;
+export type ManualCut = z.infer<typeof ManualCutSchema>;

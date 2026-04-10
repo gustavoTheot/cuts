@@ -4,6 +4,67 @@
   gap: 20px;
 }
 
+/* ── Mode tabs ── */
+.modeTabs {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px;
+  gap: 3px;
+}
+
+.modeTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.modeTab:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.modeTab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modeTabActive {
+  background: var(--surface2);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── Input error state ── */
+.inputError {
+  border-color: var(--red) !important;
+}
+
+/* ── Duration hint ── */
+.durationHint {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  background: rgba(108, 92, 231, 0.08);
+  border: 1px solid rgba(108, 92, 231, 0.2);
+  border-radius: var(--radius-sm);
+  margin-top: -8px;
+}
+
+.durationHint strong {
+  color: var(--text);
+}
+
 .field {
   display: flex;
   flex-direction: column;

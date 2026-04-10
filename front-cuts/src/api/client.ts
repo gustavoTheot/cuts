@@ -24,6 +24,12 @@ export interface ListCutsResponse {
   totalPages: number;
 }
 
+export interface ManualCut {
+  startMs: number;
+  endMs: number;
+  title?: string;
+}
+
 export interface PipelineRequest {
   url: string;
   lang?: string;
@@ -31,6 +37,7 @@ export interface PipelineRequest {
   maxCuts?: number;
   maxDurationMs?: number;
   subtitles?: boolean;
+  manualCut?: ManualCut;
 }
 
 export type PipelineEvent =
