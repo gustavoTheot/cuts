@@ -100,7 +100,13 @@
 .cutPhaseRow {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+}
+
+.cutPhaseHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .cutPhase {
@@ -108,10 +114,19 @@
   color: var(--text-muted);
 }
 
+.cutPercent {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .progressBar {
-  height: 3px;
+  height: 5px;
   background: var(--border);
-  border-radius: 2px;
+  border-radius: 3px;
   overflow: hidden;
   width: 100%;
 }
@@ -119,8 +134,8 @@
 .progressFill {
   height: 100%;
   background: var(--accent);
-  border-radius: 2px;
-  transition: width 0.3s ease;
+  border-radius: 3px;
+  transition: width 0.4s ease;
 }
 
 .cutRowError .cutTitle { color: var(--red); }
@@ -152,6 +167,19 @@
   background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.3);
   color: var(--green);
+}
+
+.warnBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  color: #ca8a04;
 }
 
 .spin {

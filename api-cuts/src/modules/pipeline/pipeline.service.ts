@@ -57,10 +57,10 @@ export async function* runPipeline(
       }
     }
 
+    let captured: CaptureResponse | undefined;
     try {
       yield { type: "cut_progress", index: 0, total: 1, phase: "capturing", titulo };
 
-      let captured: CaptureResponse | undefined;
       for await (const event of captureSection(
         { url, tempo_inicial: startMs, tempo_final: endMs, titulo_sugerido: titulo, tags: [], hashtags: [], maxHeight: 720 },
         () => {}
@@ -108,12 +108,12 @@ export async function* runPipeline(
       };
 
       yield { type: "cut_ready", index: 0, cut };
-      yield { type: "done", successCount: 1, failCount: 0 };
+      yield { type: "done", successCount: 1, failCount: 0, requestedCount: 1 };
     } catch (err) {
       if (captured?.id) markFailed(captured.id);
       const message = err instanceof Error ? err.message : String(err);
       yield { type: "cut_error", index: 0, titulo, message };
-      yield { type: "done", successCount: 0, failCount: 1 };
+      yield { type: "done", successCount: 0, failCount: 1, requestedCount: 1 };
     }
 
     return;
@@ -163,7 +163,7 @@ export async function* runPipeline(
       ? `A IA sugeriu ${rawCount} corte(s), mas todos ficaram menores que 5s após processamento. Tente mudar as instruções.`
       : "A IA não encontrou cortes adequados. Tente mudar as instruções ou aumentar a duração.";
     yield { type: "step", step: "intelligence", status: "done", message: detail };
-    yield { type: "done", successCount: 0, failCount: 0 };
+    yield { type: "done", successCount: 0, failCount: 0, requestedCount: maxCuts };
     return;
   }
 
@@ -183,11 +183,11 @@ export async function* runPipeline(
     const corte = intelligence.cortes[i];
     if (!corte) continue;
     const titulo = corte.titulo_sugerido;
+    let captured: CaptureResponse | undefined;
 
     try {
       yield { type: "cut_progress", index: i, total, phase: "capturing", titulo };
 
-      let captured: CaptureResponse | undefined;
       for await (const event of captureSection(
         {
           url,
@@ -252,5 +252,5 @@ export async function* runPipeline(
     }
   }
 
-  yield { type: "done", successCount, failCount };
+  yield { type: "done", successCount, failCount, requestedCount: maxCuts };
 }

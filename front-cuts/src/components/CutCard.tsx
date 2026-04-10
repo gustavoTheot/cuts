@@ -97,6 +97,7 @@ export function CutCard({ cut, onDelete, onUpdate, onPublish, deleting }: Props)
               preload="metadata"
               onLoadedData={() => setVideoLoading(false)}
               onCanPlay={() => setVideoLoading(false)}
+              onError={() => setVideoLoading(false)}
               onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
               onMouseLeave={(e) => {
                 const v = e.currentTarget as HTMLVideoElement;

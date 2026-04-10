@@ -144,7 +144,8 @@ function filterByDuration(
   minDurationMs: number,
   maxDurationMs: number
 ): Cut[] {
-  const ABSOLUTE_MIN_MS = 5_000; // never accept clips shorter than 5s regardless of LLM output
+  // Use the user-requested minimum, floored at 5s as absolute safety net
+  const effectiveMin = Math.max(5_000, minDurationMs);
   return cuts
     .map((c) => {
       const duration = c.tempo_final - c.tempo_inicial;
@@ -154,7 +155,7 @@ function filterByDuration(
       }
       return c;
     })
-    .filter((c) => c.tempo_final - c.tempo_inicial >= ABSOLUTE_MIN_MS);
+    .filter((c) => c.tempo_final - c.tempo_inicial >= effectiveMin);
 }
 
 // ── Main service function ─────────────────────────────────────────────────────

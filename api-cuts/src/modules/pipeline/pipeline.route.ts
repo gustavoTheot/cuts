@@ -26,6 +26,11 @@ const pipelineRoutes: FastifyPluginAsync = async (fastify) => {
       reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
     };
 
+    // Heartbeat keeps the connection alive through proxies and long downloads
+    const heartbeat = setInterval(() => {
+      if (!reply.raw.writableEnded) reply.raw.write(": heartbeat\n\n");
+    }, 15_000);
+
     emit({ type: "start", message: "Pipeline iniciado…" });
 
     try {
@@ -36,6 +41,7 @@ const pipelineRoutes: FastifyPluginAsync = async (fastify) => {
       const message = err instanceof Error ? err.message : String(err);
       emit({ type: "error", message });
     } finally {
+      clearInterval(heartbeat);
       reply.raw.end();
     }
   });

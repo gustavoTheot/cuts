@@ -64,7 +64,7 @@ export type PipelineEvent =
   | { type: "cut_phase_progress"; index: number; phase: "capturing" | "rendering"; percent: number }
   | { type: "cut_ready"; index: number; cut: ReadyCut }
   | { type: "cut_error"; index: number; titulo: string; message: string }
-  | { type: "done"; successCount: number; failCount: number }
+  | { type: "done"; successCount: number; failCount: number; requestedCount: number }
   | { type: "error"; message: string };
 
 export interface ReadyCut {

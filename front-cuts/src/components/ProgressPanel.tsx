@@ -22,7 +22,7 @@ export interface ProgressState {
     capture: StepState;
   };
   cutProgress: CutProgress[];
-  done?: { successCount: number; failCount: number };
+  done?: { successCount: number; failCount: number; requestedCount: number };
   error?: string;
 }
 
@@ -108,7 +108,7 @@ export function applyEvent(prev: ProgressState, event: PipelineEvent): ProgressS
       return {
         ...prev,
         active: false,
-        done: { successCount: event.successCount, failCount: event.failCount },
+        done: { successCount: event.successCount, failCount: event.failCount, requestedCount: event.requestedCount },
         steps: {
           ...prev.steps,
           capture: {
@@ -183,18 +183,20 @@ export function ProgressPanel({ progress, idle }: Props) {
                 <span className={styles.cutErr}>{c.error}</span>
               ) : (
                 <div className={styles.cutPhaseRow}>
-                  <span className={styles.cutPhase}>
-                    {c.phase === "capturing" ? "Capturando" : "Renderizando"}
-                    {c.percent !== undefined ? ` ${c.percent}%` : "…"}
-                  </span>
-                  {c.percent !== undefined && (
-                    <div className={styles.progressBar}>
-                      <div
-                        className={styles.progressFill}
-                        style={{ width: `${c.percent}%` }}
-                      />
-                    </div>
-                  )}
+                  <div className={styles.cutPhaseHeader}>
+                    <span className={styles.cutPhase}>
+                      {c.phase === "capturing" ? "Capturando" : "Renderizando"}
+                    </span>
+                    <span className={styles.cutPercent}>
+                      {c.percent !== undefined ? `${c.percent}%` : "…"}
+                    </span>
+                  </div>
+                  <div className={styles.progressBar}>
+                    <div
+                      className={styles.progressFill}
+                      style={{ width: `${c.percent ?? 0}%` }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -208,9 +210,19 @@ export function ProgressPanel({ progress, idle }: Props) {
         </div>
       )}
 
-      {progress.done && (
+      {progress.done && progress.done.successCount > 0 && (
         <div className={styles.doneBanner}>
           <CheckIcon /> {progress.done.successCount} corte(s) gerado(s) com sucesso!
+        </div>
+      )}
+
+      {progress.done && progress.done.successCount < progress.done.requestedCount && (
+        <div className={styles.warnBanner}>
+          <WarnIcon />
+          {progress.done.successCount === 0
+            ? `Nenhum corte foi gerado. Verifique as instruções ou tente outro vídeo.`
+            : `Foram gerados ${progress.done.successCount} de ${progress.done.requestedCount} corte(s) solicitado(s).`}
+          {progress.done.failCount > 0 && ` (${progress.done.failCount} falhou)`}
         </div>
       )}
     </div>
@@ -243,6 +255,16 @@ function IdleIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="10" />
+    </svg>
+  );
+}
+
+function WarnIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   );
 }

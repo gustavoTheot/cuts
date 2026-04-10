@@ -52,6 +52,16 @@ export function CutsList({ refreshTrigger }: Props) {
     void load(1);
   }, [refreshTrigger, load]);
 
+  // Auto-poll while any cut is still processing or captured (waiting to render)
+  const hasProcessingCuts = items.some(
+    (c) => c.status === "processing" || c.status === "captured"
+  );
+  useEffect(() => {
+    if (!hasProcessingCuts) return;
+    const timer = setInterval(() => void load(page), 4_000);
+    return () => clearInterval(timer);
+  }, [hasProcessingCuts, load, page]);
+
   async function handleDelete(id: string) {
     setDeletingIds((prev) => new Set([...prev, id]));
     try {

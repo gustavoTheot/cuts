@@ -1,6 +1,7 @@
 import ffmpeg from "fluent-ffmpeg";
 import { getFfmpegPath } from "../../lib/ffmpegpath.js";
 ffmpeg.setFfmpegPath(getFfmpegPath());
+import { spawn } from "node:child_process";
 import {
   createWriteStream,
   statSync,
@@ -65,6 +66,10 @@ async function buildPresignedUrl(storageKey: string): Promise<string> {
   }
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const RENDER_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
 // ── VideoToolbox detection ────────────────────────────────────────────────────
 
 let _hasVTB: boolean | null = null;
@@ -72,7 +77,6 @@ let _hasVTB: boolean | null = null;
 async function hasVideoToolbox(): Promise<boolean> {
   if (_hasVTB !== null) return _hasVTB;
   return new Promise((resolve) => {
-    const { spawn } = require("node:child_process") as typeof import("node:child_process");
     const proc = spawn(getFfmpegPath(), ["-encoders"], { stdio: ["ignore", "pipe", "ignore"] });
     let out = "";
     proc.stdout.on("data", (d: Buffer) => (out += d.toString()));
@@ -150,6 +154,11 @@ async function* renderWithProgress(
       .addOutputOption("-crf 23");
   }
 
+  const renderTimer = setTimeout(() => {
+    emit({ type: "error", err: new Error(`ffmpeg render timed out after ${RENDER_TIMEOUT_MS / 60_000} minutes`) });
+    try { cmd.kill("SIGKILL"); } catch { /* already done */ }
+  }, RENDER_TIMEOUT_MS);
+
   cmd
     .audioCodec("aac")
     .audioBitrate("128k")
@@ -158,8 +167,8 @@ async function* renderWithProgress(
     .on("start", (c) => log(`[ffmpeg] ${c}`))
     .on("stderr", (line) => log(`[ffmpeg] ${line}`))
     .on("progress", ({ percent }) => emit({ type: "progress", pct: Math.min(Math.round(percent ?? 0), 99) }))
-    .on("end", () => emit({ type: "end" }))
-    .on("error", (err) => emit({ type: "error", err }))
+    .on("end", () => { clearTimeout(renderTimer); emit({ type: "end" }); })
+    .on("error", (err) => { clearTimeout(renderTimer); emit({ type: "error", err }); })
     .save(outputPath);
 
   while (true) {

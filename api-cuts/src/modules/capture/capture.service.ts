@@ -19,6 +19,10 @@ export type CaptureEvent =
   | { kind: "progress"; percent: number }
   | { kind: "done"; result: CaptureResponse };
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const DOWNLOAD_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
 function msToYtDlpTime(ms: number): string {
@@ -61,26 +65,41 @@ async function* downloadSection(
   const ytDlpBin = await ensureYtDlp();
   const proc = spawn(ytDlpBin, args, { stdio: ["ignore", "ignore", "pipe"], detached: true });
 
+  let timedOut = false;
+  const killTimer = setTimeout(() => {
+    timedOut = true;
+    try { if (proc.pid) process.kill(-proc.pid, "SIGKILL"); } catch { /* already exited */ }
+  }, DOWNLOAD_TIMEOUT_MS);
+
   let lastPercent = 0;
 
   // Node.js streams are async iterables — read stderr chunk by chunk
-  for await (const chunk of proc.stderr as AsyncIterable<Buffer>) {
-    const text = chunk.toString();
-    // yt-dlp with --newline: "[download]  72.3% of ..."
-    const match = /\[download\]\s+([\d.]+)%/.exec(text);
-    if (match) {
-      const pct = Math.min(Math.round(parseFloat(match[1])), 99);
-      if (pct > lastPercent) {
-        lastPercent = pct;
-        yield pct;
+  try {
+    for await (const chunk of proc.stderr as AsyncIterable<Buffer>) {
+      const text = chunk.toString();
+      // yt-dlp with --newline: "[download]  72.3% of ..."
+      const match = /\[download\]\s+([\d.]+)%/.exec(text);
+      if (match) {
+        const pct = Math.min(Math.round(parseFloat(match[1] ?? "0")), 99);
+        if (pct > lastPercent) {
+          lastPercent = pct;
+          yield pct;
+        }
       }
     }
+  } finally {
+    clearTimeout(killTimer);
+  }
+
+  if (timedOut) {
+    throw new AppError(504, `yt-dlp timed out — download took more than ${DOWNLOAD_TIMEOUT_MS / 60_000} minutes`);
   }
 
   // Wait for process exit
   await new Promise<void>((resolve, reject) => {
     proc.on("close", (code, signal) => {
-      if (code === 0) resolve();
+      if (timedOut) reject(new AppError(504, "yt-dlp timed out"));
+      else if (code === 0) resolve();
       else reject(new AppError(502, `yt-dlp exited with ${signal ?? `code ${code}`}`));
     });
     proc.on("error", (err) => reject(new AppError(502, `Failed to spawn yt-dlp: ${err.message}`)));
