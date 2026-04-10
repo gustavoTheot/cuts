@@ -31,6 +31,7 @@ export function CutCard({ cut, onDelete, onUpdate, onPublish, deleting }: Props)
   const [editDesc, setEditDesc] = useState(cut.description ?? "");
   const [saving, setSaving] = useState(false);
   const [videoLoading, setVideoLoading] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const duration = formatMs(cut.durationMs);
   const start = formatMs(cut.startMs);
@@ -57,6 +58,26 @@ export function CutCard({ cut, onDelete, onUpdate, onPublish, deleting }: Props)
   }
 
   return (
+    <>
+      {confirmDelete && (
+        <div className={styles.confirmOverlay} onClick={() => setConfirmDelete(false)}>
+          <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+            <p className={styles.confirmTitle}>Remover corte?</p>
+            <p className={styles.confirmDesc}>"{cut.title}"</p>
+            <div className={styles.confirmActions}>
+              <button className={styles.confirmCancelBtn} onClick={() => setConfirmDelete(false)}>
+                Cancelar
+              </button>
+              <button
+                className={styles.confirmDeleteBtn}
+                onClick={() => { setConfirmDelete(false); onDelete(cut.id); }}
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     <div className={styles.card}>
       {/* Thumbnail / preview */}
       <div className={styles.thumb}>
@@ -201,7 +222,7 @@ export function CutCard({ cut, onDelete, onUpdate, onPublish, deleting }: Props)
 
           <button
             className={styles.deleteBtn}
-            onClick={() => onDelete(cut.id)}
+            onClick={() => setConfirmDelete(true)}
             disabled={deleting}
             title="Remover corte"
           >
@@ -210,6 +231,7 @@ export function CutCard({ cut, onDelete, onUpdate, onPublish, deleting }: Props)
         </div>
       </div>
     </div>
+    </>
   );
 }
 

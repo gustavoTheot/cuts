@@ -9,7 +9,7 @@ import {
   getYouTubeAuthUrl, exchangeYouTubeCode, refreshYouTubeToken, uploadToYouTube,
 } from "./platforms/youtube.js";
 import {
-  getTikTokAuthUrl, exchangeTikTokCode, refreshTikTokToken, uploadToTikTok,
+  getTikTokAuthUrl, exchangeTikTokCode, refreshTikTokToken, uploadToTikTok, consumePkceVerifier,
 } from "./platforms/tiktok.js";
 import type { Platform } from "./social.schema.js";
 
@@ -25,7 +25,8 @@ export function getAuthUrl(platform: Platform): string {
 
 export async function handleCallback(
   platform: Platform,
-  code: string
+  code: string,
+  state?: string
 ): Promise<void> {
   if (platform === "youtube") {
     const tokens = await exchangeYouTubeCode(code);
@@ -59,8 +60,10 @@ export async function handleCallback(
     return;
   }
 
-  // TikTok
-  const tokens = await exchangeTikTokCode(code);
+  // TikTok — recover PKCE verifier from state
+  if (!state) throw new AppError(400, "TikTok callback missing state parameter");
+  const codeVerifier = consumePkceVerifier(state);
+  const tokens = await exchangeTikTokCode(code, codeVerifier);
   const existing = db.select().from(socialAccounts).where(eq(socialAccounts.platform, "tiktok")).get();
   const now = new Date();
   if (existing) {

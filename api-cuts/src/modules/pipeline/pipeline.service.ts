@@ -101,8 +101,8 @@ export async function* runPipeline(
     model,
   } = request;
 
-  // Minimum = 70% of target, floored at 15 s.
-  const minDurationMs = Math.max(15_000, Math.round(maxDurationMs * 0.7));
+  // Minimum = 50% of target, floored at 15 s.
+  const minDurationMs = Math.max(15_000, Math.round(maxDurationMs * 0.5));
 
   // ── Step 1: Transcription ──────────────────────────────────────────────────
   yield { type: "step", step: "transcription", status: "running", message: "Buscando transcrição do vídeo…" };

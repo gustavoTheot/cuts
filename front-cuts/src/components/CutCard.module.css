@@ -341,3 +341,80 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── Delete confirmation modal ── */
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirmModal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.confirmTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.confirmDesc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.confirmCancelBtn {
+  flex: 1;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+.confirmCancelBtn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.confirmDeleteBtn {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--red);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+
+.confirmDeleteBtn:hover {
+  opacity: 0.85;
+}

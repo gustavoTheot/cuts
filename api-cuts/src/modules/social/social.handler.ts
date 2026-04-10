@@ -15,18 +15,18 @@ export async function authHandler(
 }
 
 export async function callbackHandler(
-  request: FastifyRequest<{ Params: { platform: string }; Querystring: { code?: string; error?: string } }>,
+  request: FastifyRequest<{ Params: { platform: string }; Querystring: { code?: string; state?: string; error?: string } }>,
   reply: FastifyReply
 ) {
   const platform = request.params.platform as Platform;
-  const { code, error } = request.query;
+  const { code, state, error } = request.query;
 
   if (error || !code) {
     return reply.redirect(`${env.FRONTEND_URL}?social_error=${platform}`);
   }
 
   try {
-    await handleCallback(platform, code);
+    await handleCallback(platform, code, state);
     return reply.redirect(`${env.FRONTEND_URL}?social_connected=${platform}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown error";

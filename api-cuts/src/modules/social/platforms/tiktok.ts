@@ -3,7 +3,7 @@ import { env } from "../../../config/env.js";
 import { AppError } from "../../../shared/errors.js";
 
 const TIKTOK_API = "https://open.tiktokapis.com/v2";
-const REDIRECT_URI = `${new URL(env.FRONTEND_URL).origin.replace("5173", "3000")}/api/v1/social/callback/tiktok`;
+const REDIRECT_URI = `${env.API_URL}/api/v1/social/callback/tiktok`;
 
 // In-memory store: state → code_verifier (expires after 10 min)
 const pkceStore = new Map<string, { verifier: string; expiresAt: number }>();
@@ -43,7 +43,7 @@ export function getTikTokAuthUrl(state: string): string {
 
   const params = new URLSearchParams({
     client_key: env.TIKTOK_CLIENT_KEY,
-    scope: "user.info.basic,video.publish,video.upload",
+    scope: "user.info.basic,video.list",
     response_type: "code",
     redirect_uri: REDIRECT_URI,
     state,

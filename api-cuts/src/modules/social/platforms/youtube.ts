@@ -7,7 +7,7 @@ import { env } from "../../../config/env.js";
 import { minioClient } from "../../../storage/minio.js";
 import { AppError } from "../../../shared/errors.js";
 
-const REDIRECT_URI = `${new URL(env.FRONTEND_URL).origin.replace("5173", "3000")}/api/v1/social/callback/youtube`;
+const REDIRECT_URI = `${env.API_URL}/api/v1/social/callback/youtube`;
 
 export function getYouTubeAuthUrl(state: string): string {
   if (!env.YOUTUBE_CLIENT_ID) throw new AppError(501, "YouTube OAuth not configured — set YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET");

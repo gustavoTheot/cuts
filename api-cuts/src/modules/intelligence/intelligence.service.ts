@@ -110,25 +110,31 @@ ${formattedTranscript}`;
 // ── JSON extraction ───────────────────────────────────────────────────────────
 
 function extractJson(raw: string): unknown {
-  // Strip markdown code fences if the model wraps the response
-  const stripped = raw
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "")
-    .trim();
-  try {
-    return JSON.parse(stripped);
-  } catch {
-    // Fallback: find the first {...} block in the response
-    const match = /\{[\s\S]*\}/.exec(stripped);
-    if (match) {
-      try {
-        return JSON.parse(match[0]);
-      } catch {
-        // fall through
-      }
-    }
-    throw new AppError(502, "LLM returned a response that is not valid JSON");
+  // 1. Try raw as-is
+  try { return JSON.parse(raw.trim()); } catch { /* continue */ }
+
+  // 2. Extract content from a markdown code block (anywhere in the response)
+  const fenceMatch = /```(?:json)?\s*([\s\S]*?)```/i.exec(raw);
+  if (fenceMatch?.[1]) {
+    try { return JSON.parse(fenceMatch[1].trim()); } catch { /* continue */ }
   }
+
+  // 3. Find the outermost {...} block (greedy — captures the full object)
+  const braceMatch = /\{[\s\S]*\}/m.exec(raw);
+  if (braceMatch) {
+    try { return JSON.parse(braceMatch[0]); } catch { /* continue */ }
+  }
+
+  // 4. Last resort: find innermost valid JSON object (for truncated responses)
+  const lastBrace = raw.lastIndexOf("}");
+  if (lastBrace !== -1) {
+    const firstBrace = raw.indexOf("{");
+    if (firstBrace !== -1) {
+      try { return JSON.parse(raw.slice(firstBrace, lastBrace + 1)); } catch { /* continue */ }
+    }
+  }
+
+  throw new AppError(502, "LLM returned a response that is not valid JSON");
 }
 
 // ── Duration filter ───────────────────────────────────────────────────────────
@@ -138,10 +144,19 @@ function filterByDuration(
   minDurationMs: number,
   maxDurationMs: number
 ): Cut[] {
-  return cuts.filter((c) => {
-    const duration = c.tempo_final - c.tempo_inicial;
-    return duration >= minDurationMs && duration <= maxDurationMs;
-  });
+  return cuts
+    .map((c) => {
+      const duration = c.tempo_final - c.tempo_inicial;
+      // Truncate clips that are slightly over the max instead of discarding them
+      if (duration > maxDurationMs) {
+        return { ...c, tempo_final: c.tempo_inicial + maxDurationMs };
+      }
+      return c;
+    })
+    .filter((c) => {
+      const duration = c.tempo_final - c.tempo_inicial;
+      return duration >= minDurationMs;
+    });
 }
 
 // ── Main service function ─────────────────────────────────────────────────────
@@ -194,10 +209,19 @@ export async function analyzeTranscript(
   }
 
   // 4. Parse and validate response
-  const parsed = extractJson(rawContent);
+  let parsed: unknown;
+  try {
+    parsed = extractJson(rawContent);
+  } catch {
+    console.error("[intelligence] Raw LLM content (first 1000 chars):", rawContent.slice(0, 1000));
+    throw new AppError(502, "LLM returned a response that is not valid JSON");
+  }
+
   const validated = LlmResponseSchema.safeParse(parsed);
 
   if (!validated.success) {
+    console.error("[intelligence] Schema mismatch:", validated.error.message);
+    console.error("[intelligence] Parsed object keys:", Object.keys(parsed as object));
     throw new AppError(
       502,
       `LLM response did not match the expected schema: ${validated.error.message}`

@@ -21,6 +21,8 @@ const EnvSchema = z.object({
   TIKTOK_CLIENT_KEY: z.string().default(""),
   TIKTOK_CLIENT_SECRET: z.string().default(""),
   FRONTEND_URL: z.string().default("http://localhost:5173"),
+  // Base URL of this API — used for OAuth redirect URIs. Override when using ngrok/tunnel.
+  API_URL: z.string().default("http://localhost:3000"),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
