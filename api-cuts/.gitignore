@@ -4,5 +4,9 @@ dist
 .env
 env
 
-prisma/dev.db
-.env
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
