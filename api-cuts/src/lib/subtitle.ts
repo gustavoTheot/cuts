@@ -1,8 +1,11 @@
 /**
- * Generates an ASS (Advanced SubStation Alpha) subtitle file from transcript
- * segments. ASS gives full control over font, size, position, outline, and
- * timing — essential for the social-media "burned caption" look.
+ * Generates an ASS subtitle file with a karaoke word-highlight effect.
  *
+ * Style: groups of N words shown at once (all-caps, bold, bottom-centered).
+ * The current word being spoken is highlighted in yellow; others are white.
+ * This matches the popular TikTok/Shorts caption aesthetic.
+ *
+ * ASS color format: &HAABBGGRR (alpha, blue, green, red — note reversed channel order)
  * Reference: http://moodub.free.fr/video/ass-specs.doc
  */
 
@@ -11,45 +14,43 @@ import type { TranscriptSegment } from "../modules/transcription/transcription.s
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface SubtitleStyle {
-  /** Font size in points (default 80 — readable on a mobile screen) */
+  /** Font size in points (default 110) */
   fontSize?: number;
-  /** Primary text color in &HAABBGGRR ASS hex format (default white) */
+  /** Primary (non-highlighted) text color in &HAABBGGRR ASS format (default white) */
   primaryColor?: string;
+  /** Highlighted word color in &HAABBGGRR ASS format (default yellow) */
+  highlightColor?: string;
   /** Outline color (default black) */
   outlineColor?: string;
-  /** Outline thickness in pixels (default 4) */
+  /** Outline thickness in pixels (default 5) */
   outlineSize?: number;
   /** Vertical position: "top" | "center" | "bottom" (default "bottom") */
   position?: "top" | "center" | "bottom";
   /** Vertical margin from edge in pixels (default 120) */
   marginV?: number;
-  /** Whether to bold the text (default true) */
-  bold?: boolean;
-  /**
-   * Max characters per subtitle line. Longer segments are split at word
-   * boundaries to keep text readable on a narrow portrait screen.
-   * Default: 40
-   */
-  maxCharsPerLine?: number;
+  /** Words shown per group/line (default 3) */
+  wordsPerGroup?: number;
+  /** Whether to uppercase the text (default true) */
+  uppercase?: boolean;
 }
 
-// ── ASS alignment values ──────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 //   1=bot-left  2=bot-center  3=bot-right
 //   4=mid-left  5=mid-center  6=mid-right
 //   7=top-left  8=top-center  9=top-right
-
 const ALIGNMENT_MAP: Record<Required<SubtitleStyle>["position"], number> = {
   bottom: 2,
   center: 5,
   top: 8,
 };
 
+// Minimum duration per word (ms) — prevents near-invisible flashes
+const MIN_WORD_MS = 120;
+
 // ── Time helpers ──────────────────────────────────────────────────────────────
 
-/**
- * Converts milliseconds to ASS timestamp format: H:MM:SS.cs (centiseconds).
- * e.g. 92_350 ms → "0:01:32.35"
- */
+/** ms → ASS timestamp: H:MM:SS.cs */
 function msToAss(ms: number): string {
   const totalCs = Math.floor(ms / 10);
   const h = Math.floor(totalCs / 360_000);
@@ -59,43 +60,54 @@ function msToAss(ms: number): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
 }
 
-// ── Text chunking ─────────────────────────────────────────────────────────────
+// ── Word timing ───────────────────────────────────────────────────────────────
 
 /**
- * Splits a long segment text into lines that fit within `maxChars` by
- * breaking at word boundaries. Each chunk shares the same timing block
- * with the proportional duration.
+ * Distributes a segment's duration across its words proportionally by
+ * character count (longer words get more time). Returns an array of
+ * { word, startMs, endMs } relative to the clip start.
  */
-function chunkText(text: string, maxChars: number): string[] {
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let current = "";
+function distributeWordTimings(
+  words: string[],
+  segRelStartMs: number,
+  segRelEndMs: number
+): Array<{ word: string; startMs: number; endMs: number }> {
+  if (words.length === 0) return [];
 
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length <= maxChars) {
-      current = candidate;
-    } else {
-      if (current) lines.push(current);
-      current = word;
-    }
+  const totalDuration = segRelEndMs - segRelStartMs;
+  const totalChars = words.reduce((sum, w) => sum + Math.max(w.length, 1), 0);
+
+  const result: Array<{ word: string; startMs: number; endMs: number }> = [];
+  let cursor = segRelStartMs;
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]!;
+    const charRatio = Math.max(word.length, 1) / totalChars;
+    let duration = Math.round(totalDuration * charRatio);
+    // Enforce minimum so fast words are still visible
+    duration = Math.max(duration, MIN_WORD_MS);
+    const start = cursor;
+    const end = i === words.length - 1
+      ? segRelEndMs                  // last word ends exactly at segment boundary
+      : Math.min(cursor + duration, segRelEndMs - MIN_WORD_MS * (words.length - i - 1));
+    result.push({ word, startMs: start, endMs: end });
+    cursor = end;
   }
-  if (current) lines.push(current);
-  return lines.length ? lines : [text];
+
+  return result;
 }
 
-// ── ASS script builder ────────────────────────────────────────────────────────
+// ── ASS builder ───────────────────────────────────────────────────────────────
 
 /**
- * Generates the full ASS file content.
+ * Generates the full ASS file content with karaoke word-highlight style.
  *
- * @param segments  Transcript segments (absolute ms offsets from video start).
- * @param cutStartMs  Start of the cut in ms — used to shift all timestamps to
- *                    a 0-based timeline relative to the rendered clip.
- * @param cutEndMs    End of the cut in ms — segments beyond this are discarded.
- * @param width       Video width in pixels (for PlayResX).
- * @param height      Video height in pixels (for PlayResY).
- * @param style       Visual style overrides.
+ * @param segments     Transcript segments (absolute ms from video start).
+ * @param cutStartMs   Start of the clip in ms — all timestamps are shifted.
+ * @param cutEndMs     End of the clip in ms.
+ * @param width        Frame width (px).
+ * @param height       Frame height (px).
+ * @param style        Visual overrides.
  */
 export function generateAss(
   segments: TranscriptSegment[],
@@ -106,70 +118,85 @@ export function generateAss(
   style: SubtitleStyle = {}
 ): string {
   const {
-    fontSize = 80,
-    primaryColor = "&H00FFFFFF",
-    outlineColor = "&H00000000",
-    outlineSize = 4,
+    fontSize = 110,
+    primaryColor = "&H00FFFFFF",   // white
+    highlightColor = "&H0000FFFF", // yellow (ASS BGR: B=0, G=255, R=255)
+    outlineColor = "&H00000000",   // black
+    outlineSize = 5,
     position = "bottom",
     marginV = 120,
-    bold = true,
-    maxCharsPerLine = 40,
+    wordsPerGroup = 3,
+    uppercase = true,
   } = style;
 
   const alignment = ALIGNMENT_MAP[position];
-  const boldFlag = bold ? -1 : 0;
 
-  // ── Script header ──────────────────────────────────────────────────────────
-  const header = `[Script Info]
-ScriptType: v4.00+
-Collisions: Normal
-PlayResX: ${width}
-PlayResY: ${height}
-Timer: 100.0000
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,${fontSize},${primaryColor},&H000000FF,${outlineColor},&H00000000,${boldFlag},0,0,0,100,100,0,0,1,${outlineSize},0,${alignment},20,20,${marginV},1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
+  // ── Header ──────────────────────────────────────────────────────────────────
+  const header = [
+    "[Script Info]",
+    "ScriptType: v4.00+",
+    "Collisions: Normal",
+    `PlayResX: ${width}`,
+    `PlayResY: ${height}`,
+    "Timer: 100.0000",
+    "",
+    "[V4+ Styles]",
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    // Bold=-1, BorderStyle=1 (outline+shadow), Shadow=2
+    `Style: Default,Arial,${fontSize},${primaryColor},${highlightColor},${outlineColor},&H00000000,-1,0,0,0,100,100,2,0,1,${outlineSize},2,${alignment},30,30,${marginV},1`,
+    "",
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+  ].join("\n");
 
   // ── Dialogue lines ─────────────────────────────────────────────────────────
-  const lines: string[] = [header];
+  const dialogueLines: string[] = [];
 
   for (const seg of segments) {
-    const segStart = seg.offset;
-    const segEnd = seg.offset + seg.duration;
+    const segAbsEnd = seg.offset + seg.duration;
 
     // Skip segments fully outside the cut window
-    if (segEnd <= cutStartMs || segStart >= cutEndMs) continue;
+    if (segAbsEnd <= cutStartMs || seg.offset >= cutEndMs) continue;
 
-    // Clamp to cut boundaries and shift to 0-based clip timeline
-    const relStart = Math.max(segStart - cutStartMs, 0);
-    const relEnd = Math.min(segEnd - cutStartMs, cutEndMs - cutStartMs);
+    // Clamp to cut boundaries and make relative to clip start
+    const relStart = Math.max(seg.offset - cutStartMs, 0);
+    const relEnd = Math.min(segAbsEnd - cutStartMs, cutEndMs - cutStartMs);
     if (relEnd <= relStart) continue;
 
-    const textChunks = chunkText(seg.text.trim(), maxCharsPerLine);
+    const rawText = uppercase ? seg.text.trim().toUpperCase() : seg.text.trim();
+    const words = rawText.split(/\s+/).filter((w) => w.length > 0);
+    if (words.length === 0) continue;
 
-    // Split the segment's duration proportionally among chunks
-    const chunkDurationMs = (relEnd - relStart) / textChunks.length;
+    // Distribute timing across words
+    const wordTimings = distributeWordTimings(words, relStart, relEnd);
 
-    textChunks.forEach((chunk, i) => {
-      const chunkStart = relStart + i * chunkDurationMs;
-      const chunkEnd = chunkStart + chunkDurationMs;
+    // Process words in groups of wordsPerGroup
+    for (let g = 0; g < wordTimings.length; g += wordsPerGroup) {
+      const group = wordTimings.slice(g, g + wordsPerGroup);
+      const groupWords = group.map((wt) => wt.word);
 
-      // ASS escaping: replace newlines and curly braces with safe equivalents
-      const escaped = chunk
-        .replace(/\\/g, "\\\\")
-        .replace(/\{/g, "\\{")
-        .replace(/\}/g, "\\}")
-        .replace(/\n/g, "\\N");
+      // For each word in the group, emit a dialogue line where that word
+      // is highlighted and the others are in the primary color.
+      for (let w = 0; w < group.length; w++) {
+        const { startMs, endMs } = group[w]!;
 
-      lines.push(
-        `Dialogue: 0,${msToAss(chunkStart)},${msToAss(chunkEnd)},Default,,0,0,0,,${escaped}`
-      );
-    });
+        // Build colored text
+        const text = groupWords
+          .map((word, idx) => {
+            if (idx === w) {
+              // Highlighted word: switch to highlight color, then back
+              return `{\\c${highlightColor}&}${word}{\\c${primaryColor}&}`;
+            }
+            return word;
+          })
+          .join(" ");
+
+        dialogueLines.push(
+          `Dialogue: 0,${msToAss(startMs)},${msToAss(endMs)},Default,,0,0,0,,${text}`
+        );
+      }
+    }
   }
 
-  return lines.join("\n");
+  return [header, ...dialogueLines].join("\n");
 }

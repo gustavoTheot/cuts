@@ -10,6 +10,7 @@ interface CutProgress {
   index: number;
   titulo: string;
   phase: "capturing" | "rendering";
+  percent?: number;
   error?: string;
 }
 
@@ -74,9 +75,16 @@ export function applyEvent(prev: ProgressState, event: PipelineEvent): ProgressS
       };
     }
 
+    case "cut_phase_progress": {
+      const cutProgress = prev.cutProgress.map((c) =>
+        c.index === event.index ? { ...c, phase: event.phase, percent: event.percent } : c
+      );
+      return { ...prev, cutProgress };
+    }
+
     case "cut_ready": {
       const cutProgress = prev.cutProgress.map((c) =>
-        c.index === event.index ? { ...c, phase: "rendering" as const } : c
+        c.index === event.index ? { ...c, phase: "rendering" as const, percent: 100 } : c
       );
       return { ...prev, cutProgress };
     }
@@ -174,9 +182,20 @@ export function ProgressPanel({ progress, idle }: Props) {
               {c.error ? (
                 <span className={styles.cutErr}>{c.error}</span>
               ) : (
-                <span className={styles.cutPhase}>
-                  {c.phase === "capturing" ? "Capturando…" : "Renderizando…"}
-                </span>
+                <div className={styles.cutPhaseRow}>
+                  <span className={styles.cutPhase}>
+                    {c.phase === "capturing" ? "Capturando" : "Renderizando"}
+                    {c.percent !== undefined ? ` ${c.percent}%` : "…"}
+                  </span>
+                  {c.percent !== undefined && (
+                    <div className={styles.progressBar}>
+                      <div
+                        className={styles.progressFill}
+                        style={{ width: `${c.percent}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ))}

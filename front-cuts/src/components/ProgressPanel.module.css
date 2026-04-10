@@ -97,9 +97,30 @@
   text-overflow: ellipsis;
 }
 
+.cutPhaseRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .cutPhase {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.progressBar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 
 .cutRowError .cutTitle { color: var(--red); }

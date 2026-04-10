@@ -28,20 +28,21 @@ export const IntelligenceRequestSchema = z.object({
 // ── LLM raw output (validated after parsing the AI response) ─────────────────
 
 export const CutSchema = z.object({
+  // LLM sometimes returns seconds (float) instead of ms — coerce both cases
   tempo_inicial: z
     .number()
-    .int()
     .nonnegative()
+    .transform((v) => (v < 10_000 ? Math.round(v * 1000) : Math.round(v)))
     .describe("Start time of the cut in milliseconds"),
   tempo_final: z
     .number()
-    .int()
     .positive()
+    .transform((v) => (v < 10_000 ? Math.round(v * 1000) : Math.round(v)))
     .describe("End time of the cut in milliseconds"),
   titulo_sugerido: z
     .string()
     .min(1)
-    .max(100)
+    .transform((v) => v.slice(0, 100))  // truncate instead of reject
     .describe("Suggested short title for the cut"),
   tags: z
     .array(z.string().min(1).max(30))
@@ -55,7 +56,7 @@ export const CutSchema = z.object({
     .describe("Social-media hashtags optimized for reach (no # prefix, mix of broad and niche)"),
   justificativa: z
     .string()
-    .max(300)
+    .max(500)
     .optional()
     .describe("Brief reason why this moment was selected"),
 });

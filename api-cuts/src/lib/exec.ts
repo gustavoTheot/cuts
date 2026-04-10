@@ -20,7 +20,9 @@ export function exec(
   const { timeoutMs = 5 * 60 * 1000, onStderr } = options;
 
   return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: ["ignore", "ignore", "pipe"] });
+    // detached=true puts the child in its own process group so it survives
+    // a tsx watch restart (which only kills the Node.js process, not child groups)
+    const proc = spawn(cmd, args, { stdio: ["ignore", "ignore", "pipe"], detached: true });
 
     const stderrLines: string[] = [];
 
@@ -31,22 +33,24 @@ export function exec(
     });
 
     const timer = setTimeout(() => {
-      proc.kill("SIGKILL");
+      // Kill the entire process group (negative pid) to clean up child processes too
+      try { process.kill(-(proc.pid!), "SIGKILL"); } catch { proc.kill("SIGKILL"); }
       reject(
         new AppError(504, `${cmd} timed out after ${timeoutMs / 1000}s`)
       );
     }, timeoutMs);
 
-    proc.on("close", (code) => {
+    proc.on("close", (code, signal) => {
       clearTimeout(timer);
       if (code === 0) {
         resolve();
       } else {
-        const tail = stderrLines.slice(-5).join("\n");
+        const tail = stderrLines.slice(-10).join("\n");
+        const reason = code !== null ? `code ${code}` : `signal ${signal ?? "null"}`;
         reject(
           new AppError(
             502,
-            `${cmd} exited with code ${code ?? "null"}:\n${tail}`
+            `${cmd} exited with ${reason}:\n${tail}`
           )
         );
       }

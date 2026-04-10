@@ -3,6 +3,8 @@ import { analyzeTranscript } from "../intelligence/intelligence.service.js";
 import { captureSection } from "../capture/capture.service.js";
 import { renderClip } from "../render/render.service.js";
 import { SubtitleStyleSchema } from "../render/render.schema.js";
+import type { CaptureResponse } from "../capture/capture.schema.js";
+import type { RenderResponse } from "../render/render.schema.js";
 import type { PipelineRequest, PipelineEvent, ReadyCut } from "./pipeline.schema.js";
 
 /**
@@ -49,14 +51,23 @@ export async function* runPipeline(
     try {
       yield { type: "cut_progress", index: 0, total: 1, phase: "capturing", titulo };
 
-      const captured = await captureSection(
+      let captured: CaptureResponse | undefined;
+      for await (const event of captureSection(
         { url, tempo_inicial: startMs, tempo_final: endMs, titulo_sugerido: titulo, tags: [], hashtags: [], maxHeight: 720 },
         () => {}
-      );
+      )) {
+        if (event.kind === "progress") {
+          yield { type: "cut_phase_progress", index: 0, phase: "capturing", percent: event.percent };
+        } else {
+          captured = event.result;
+        }
+      }
+      if (!captured) throw new Error("captureSection did not return a result");
 
       yield { type: "cut_progress", index: 0, total: 1, phase: "rendering", titulo };
 
-      const rendered = await renderClip(
+      let rendered: RenderResponse | undefined;
+      for await (const event of renderClip(
         {
           cutId: captured.id,
           storageKey: captured.storageKey,
@@ -68,7 +79,14 @@ export async function* runPipeline(
           resolution: { width: 1080, height: 1920 },
         },
         () => {}
-      );
+      )) {
+        if (event.kind === "progress") {
+          yield { type: "cut_phase_progress", index: 0, phase: "rendering", percent: event.percent };
+        } else {
+          rendered = event.result;
+        }
+      }
+      if (!rendered) throw new Error("renderClip did not return a result");
 
       const cut: ReadyCut = {
         id: captured.id,
@@ -159,7 +177,8 @@ export async function* runPipeline(
     try {
       yield { type: "cut_progress", index: i, total, phase: "capturing", titulo };
 
-      const captured = await captureSection(
+      let captured: CaptureResponse | undefined;
+      for await (const event of captureSection(
         {
           url,
           tempo_inicial: corte.tempo_inicial,
@@ -170,11 +189,19 @@ export async function* runPipeline(
           maxHeight: 720,
         },
         () => {}
-      );
+      )) {
+        if (event.kind === "progress") {
+          yield { type: "cut_phase_progress", index: i, phase: "capturing", percent: event.percent };
+        } else {
+          captured = event.result;
+        }
+      }
+      if (!captured) throw new Error("captureSection did not return a result");
 
       yield { type: "cut_progress", index: i, total, phase: "rendering", titulo };
 
-      const rendered = await renderClip(
+      let rendered: RenderResponse | undefined;
+      for await (const event of renderClip(
         {
           cutId: captured.id,
           storageKey: captured.storageKey,
@@ -186,7 +213,14 @@ export async function* runPipeline(
           resolution: { width: 1080, height: 1920 },
         },
         () => {}
-      );
+      )) {
+        if (event.kind === "progress") {
+          yield { type: "cut_phase_progress", index: i, phase: "rendering", percent: event.percent };
+        } else {
+          rendered = event.result;
+        }
+      }
+      if (!rendered) throw new Error("renderClip did not return a result");
 
       const cut: ReadyCut = {
         id: captured.id,

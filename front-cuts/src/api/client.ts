@@ -61,6 +61,7 @@ export type PipelineEvent =
   | { type: "start"; message: string }
   | { type: "step"; step: "transcription" | "intelligence"; status: "running" | "done"; message: string }
   | { type: "cut_progress"; index: number; total: number; phase: "capturing" | "rendering"; titulo: string }
+  | { type: "cut_phase_progress"; index: number; phase: "capturing" | "rendering"; percent: number }
   | { type: "cut_ready"; index: number; cut: ReadyCut }
   | { type: "cut_error"; index: number; titulo: string; message: string }
   | { type: "done"; successCount: number; failCount: number }
