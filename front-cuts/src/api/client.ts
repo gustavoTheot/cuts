@@ -8,11 +8,28 @@ export interface CutItem {
   title: string;
   description: string | null;
   tags: string[];
+  hashtags?: string[];
   startMs: number;
   endMs: number;
   durationMs: number;
   status: string;
   presignedUrl: string | null;
+  createdAt: string;
+}
+
+export interface SocialAccount {
+  platform: "youtube" | "tiktok";
+  platformUserId: string;
+  username: string;
+  avatarUrl: string | null;
+  connectedAt: string;
+}
+
+export interface SocialPost {
+  id: string;
+  platform: string;
+  postUrl: string | null;
+  status: string;
   createdAt: string;
 }
 
@@ -83,6 +100,48 @@ export async function updateCut(
   });
   if (!res.ok) throw new Error(`Erro ao atualizar corte: ${res.statusText}`);
   return res.json() as Promise<CutItem>;
+}
+
+// ── Social ────────────────────────────────────────────────────────────────────
+
+export async function listSocialAccounts(): Promise<SocialAccount[]> {
+  const res = await fetch(`${BASE}/social/accounts`);
+  if (!res.ok) throw new Error("Erro ao listar contas sociais");
+  const data = (await res.json()) as { accounts: SocialAccount[] };
+  return data.accounts;
+}
+
+export function getSocialAuthUrl(platform: "youtube" | "tiktok"): string {
+  return `${BASE}/social/auth/${platform}`;
+}
+
+export async function disconnectSocial(platform: "youtube" | "tiktok"): Promise<void> {
+  await fetch(`${BASE}/social/accounts/${platform}`, { method: "DELETE" });
+}
+
+export async function publishCut(opts: {
+  cutId: string;
+  platform: "youtube" | "tiktok";
+  title?: string;
+  description?: string;
+}): Promise<{ postId: string; postUrl: string | null; status: string }> {
+  const res = await fetch(`${BASE}/social/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(opts),
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(err.message ?? `Erro ao publicar: ${res.statusText}`);
+  }
+  return res.json() as Promise<{ postId: string; postUrl: string | null; status: string }>;
+}
+
+export async function getSocialPosts(cutId: string): Promise<SocialPost[]> {
+  const res = await fetch(`${BASE}/social/posts/${cutId}`);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { posts: SocialPost[] };
+  return data.posts;
 }
 
 /**

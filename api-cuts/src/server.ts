@@ -13,6 +13,7 @@ import captureRoutes from "./modules/capture/capture.route.js";
 import renderRoutes from "./modules/render/render.route.js";
 import cutsRoutes from "./modules/cuts/cuts.route.js";
 import pipelineRoutes from "./modules/pipeline/pipeline.route.js";
+import socialRoutes from "./modules/social/social.route.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: loggerOptions });
@@ -31,6 +32,7 @@ export async function buildServer() {
   await app.register(renderRoutes, { prefix: "/api/v1" });
   await app.register(cutsRoutes, { prefix: "/api/v1" });
   await app.register(pipelineRoutes, { prefix: "/api/v1" });
+  await app.register(socialRoutes, { prefix: "/api/v1" });
 
   return app;
 }

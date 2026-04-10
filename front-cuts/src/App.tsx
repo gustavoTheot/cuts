@@ -7,6 +7,7 @@ import {
   type ProgressState,
 } from "./components/ProgressPanel.tsx";
 import { CutsList } from "./components/CutsList.tsx";
+import { SocialPanel } from "./components/SocialPanel.tsx";
 import { startPipeline, type PipelineRequest, type PipelineEvent } from "./api/client.ts";
 import styles from "./App.module.css";
 
@@ -85,6 +86,9 @@ export default function App() {
 
         {/* Cuts list */}
         <CutsList refreshTrigger={refreshTrigger} />
+
+        {/* Social connections */}
+        <SocialPanel />
       </main>
     </div>
   );

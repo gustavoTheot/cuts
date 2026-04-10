@@ -270,8 +270,26 @@
   transition: background 0.15s;
 }
 
-.downloadBtn:hover {
-  background: var(--accent-hover);
+.downloadBtn:hover { background: var(--accent-hover); }
+
+.publishBtn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+
+.publishBtn:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(34, 197, 94, 0.08);
 }
 
 .statusBadge {

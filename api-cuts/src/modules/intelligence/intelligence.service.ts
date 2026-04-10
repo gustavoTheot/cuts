@@ -82,11 +82,18 @@ Analisar a transcrição e selecionar exatamente até ${maxCuts} momento(s) com 
       "tempo_inicial": <ms>,
       "tempo_final": <ms>,
       "titulo_sugerido": "<título estilo clickbait inteligente, máx 100 chars, em português>",
-      "tags": ["<tag1>", "<tag2>", "<tag3>"],
+      "tags": ["<topico1>", "<topico2>", "<topico3>"],
+      "hashtags": ["<hashtag1>", "<hashtag2>", "...", "<hashtag10>"],
       "justificativa": "<por que este momento é relevante agora e tem potencial viral>"
     }
   ]
 }
+
+## Regras para hashtags
+- Entre 5 e 15 hashtags por corte, SEM o símbolo # (será adicionado automaticamente)
+- Mix estratégico: 2-3 hashtags amplas com muito volume (ex: viral, shorts, fyp), 4-6 relacionadas ao tema do vídeo, 2-3 nichadas de alta conversão
+- Use termos em português E inglês quando fizer sentido para ampliar alcance
+- Priorize hashtags que estão em alta no momento atual (${new Date().getFullYear()})
 
 ${instructionsBlock}`;
 }

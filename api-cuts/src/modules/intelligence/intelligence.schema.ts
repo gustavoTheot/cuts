@@ -47,7 +47,12 @@ export const CutSchema = z.object({
     .array(z.string().min(1).max(30))
     .min(1)
     .max(10)
-    .describe("Relevant tags for this cut"),
+    .describe("Relevant topic tags (no # prefix)"),
+  hashtags: z
+    .array(z.string().min(1).max(50))
+    .min(3)
+    .max(15)
+    .describe("Social-media hashtags optimized for reach (no # prefix, mix of broad and niche)"),
   justificativa: z
     .string()
     .max(300)

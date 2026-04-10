@@ -50,7 +50,7 @@ export async function* runPipeline(
       yield { type: "cut_progress", index: 0, total: 1, phase: "capturing", titulo };
 
       const captured = await captureSection(
-        { url, tempo_inicial: startMs, tempo_final: endMs, titulo_sugerido: titulo, tags: [], maxHeight: 720 },
+        { url, tempo_inicial: startMs, tempo_final: endMs, titulo_sugerido: titulo, tags: [], hashtags: [], maxHeight: 720 },
         () => {}
       );
 
@@ -166,6 +166,7 @@ export async function* runPipeline(
           tempo_final: corte.tempo_final,
           titulo_sugerido: titulo,
           tags: corte.tags,
+          hashtags: corte.hashtags ?? [],
           maxHeight: 720,
         },
         () => {}

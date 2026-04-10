@@ -135,6 +135,7 @@ export async function captureSection(
     tempo_final,
     titulo_sugerido,
     tags,
+    hashtags,
     maxHeight,
   } = request;
 
@@ -161,6 +162,7 @@ export async function captureSection(
         sourceVideoId: videoId,
         title: titulo_sugerido,
         tagsJson: JSON.stringify(tags),
+        hashtagsJson: JSON.stringify(hashtags ?? []),
         rawStorageKey: rawStorageKey,
         startMs: tempo_inicial,
         endMs: tempo_final,

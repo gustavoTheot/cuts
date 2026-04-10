@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { listCuts, deleteCut, updateCut, type CutItem } from "../api/client.ts";
 import { CutCard } from "./CutCard.tsx";
+import { PublishModal } from "./PublishModal.tsx";
 import styles from "./CutsList.module.css";
 
 const PAGE_SIZE = 9;
@@ -17,6 +18,7 @@ export function CutsList({ refreshTrigger }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [publishingCut, setPublishingCut] = useState<CutItem | null>(null);
 
   const handleUpdate = useCallback(
     async (id: string, data: { title?: string; description?: string | null }) => {
@@ -71,6 +73,10 @@ export function CutsList({ refreshTrigger }: Props) {
   }
 
   return (
+    <>
+    {publishingCut && (
+      <PublishModal cut={publishingCut} onClose={() => setPublishingCut(null)} />
+    )}
     <section className={styles.section}>
       <div className={styles.header}>
         <h2 className={styles.heading}>Cortes gerados</h2>
@@ -105,6 +111,7 @@ export function CutsList({ refreshTrigger }: Props) {
                 cut={cut}
                 onDelete={handleDelete}
                 onUpdate={handleUpdate}
+                onPublish={setPublishingCut}
                 deleting={deletingIds.has(cut.id)}
               />
             ))}
@@ -156,5 +163,6 @@ export function CutsList({ refreshTrigger }: Props) {
         </>
       )}
     </section>
+    </>
   );
 }

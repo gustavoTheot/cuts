@@ -17,7 +17,9 @@ export const CaptureRequestSchema = z.object({
   /** Human-readable title for the cut */
   titulo_sugerido: z.string().min(1).max(100),
   /** Tags for the cut */
-  tags: z.array(z.string().min(1).max(30)).min(1).max(10),
+  tags: z.array(z.string().min(1).max(30)).max(10).default([]),
+  /** Social-media hashtags (no # prefix) */
+  hashtags: z.array(z.string().min(1).max(50)).max(15).default([]),
   /** Max video resolution (default: 720) */
   maxHeight: z.coerce.number().int().default(720),
 }).refine((d) => d.tempo_final > d.tempo_inicial, {
