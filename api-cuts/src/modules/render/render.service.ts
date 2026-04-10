@@ -78,33 +78,33 @@ async function buildPresignedUrl(storageKey: string): Promise<string> {
  * Runs the full rendering pipeline:
  *   1. Crop 16:9 → 9:16 (center-crop the portrait column)
  *   2. Scale to target resolution (default 1080×1920)
- *   3. Burn ASS subtitles
+ *   3. Optionally burn ASS subtitles
  *   4. Encode to H.264/AAC MP4 optimised for streaming
  */
 function render(
   inputPath: string,
-  subtitlePath: string,
+  subtitlePath: string | null,
   outputPath: string,
   width: number,
   height: number,
   log: (msg: string) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Escape the subtitle path for the ffmpeg subtitles filter.
-    // On Unix only colons and backslashes need escaping inside filter values.
-    const escapedSubPath = subtitlePath
-      .replace(/\\/g, "\\\\")
-      .replace(/:/g, "\\:");
-
-    // Filter chain:
-    //   crop   — extract the central 9:16 column from whatever input resolution
-    //   scale  — resize to target (e.g. 1080×1920)
-    //   subtitles — burn the ASS captions directly into the pixel data
-    const vf = [
+    const filters = [
       `crop=ih*${width}/${height}:ih:(iw-ih*${width}/${height})/2:0`,
       `scale=${width}:${height}`,
-      `subtitles='${escapedSubPath}'`,
-    ].join(",");
+    ];
+
+    if (subtitlePath) {
+      // Escape the subtitle path for the ffmpeg subtitles filter.
+      // On Unix only colons and backslashes need escaping inside filter values.
+      const escapedSubPath = subtitlePath
+        .replace(/\\/g, "\\\\")
+        .replace(/:/g, "\\:");
+      filters.push(`subtitles='${escapedSubPath}'`);
+    }
+
+    const vf = filters.join(",");
 
     ffmpeg(inputPath)
       .videoFilter(vf)
@@ -141,6 +141,7 @@ export async function renderClip(
     tempo_final,
     segments,
     subtitleStyle,
+    noSubtitles,
     resolution,
   } = request;
 
@@ -168,21 +169,26 @@ export async function renderClip(
     log(`[render] Downloading ${storageKey} from MinIO…`);
     await downloadFromMinio(storageKey, rawPath);
 
-    // 2. Generate ASS subtitle file
-    log(`[render] Generating subtitles for ${segments.length} segment(s)…`);
-    const assContent = generateAss(
-      segments,
-      tempo_inicial,
-      tempo_final,
-      width,
-      height,
-      subtitleStyle as SubtitleStyle
-    );
-    writeFileSync(assPath, assContent, "utf8");
+    // 2. Generate ASS subtitle file (skip when noSubtitles is true)
+    let effectiveAssPath: string | null = null;
+    if (!noSubtitles) {
+      log(`[render] Generating subtitles for ${segments.length} segment(s)…`);
+      const assContent = generateAss(
+        segments,
+        tempo_inicial,
+        tempo_final,
+        width,
+        height,
+        subtitleStyle as SubtitleStyle
+      );
+      writeFileSync(assPath, assContent, "utf8");
+      effectiveAssPath = assPath;
+    }
 
     // 3. Run ffmpeg rendering pipeline
-    log(`[render] Encoding ${width}×${height} with burned subtitles…`);
-    await render(rawPath, assPath, outPath, width, height, log);
+    const label = noSubtitles ? "without subtitles" : "with burned subtitles";
+    log(`[render] Encoding ${width}×${height} ${label}…`);
+    await render(rawPath, effectiveAssPath, outPath, width, height, log);
 
     // 4. Upload rendered clip to MinIO
     log(`[render] Uploading rendered clip to ${outputKey}…`);

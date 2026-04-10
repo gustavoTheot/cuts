@@ -65,6 +65,7 @@ export const IntelligenceResponseSchema = z.object({
   videoId: z.string(),
   model: z.string(),
   cortes: z.array(CutSchema),
+  rawCount: z.number().optional(),
   tokensUsed: z.number().optional(),
 });
 

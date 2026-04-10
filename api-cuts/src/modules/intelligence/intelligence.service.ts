@@ -169,16 +169,14 @@ export async function analyzeTranscript(
   }
 
   // 5. Post-process: enforce duration constraints and cap to maxCuts
-  const filtered = filterByDuration(
-    validated.data.cortes,
-    minDurationMs,
-    maxDurationMs
-  ).slice(0, maxCuts);
+  const rawCortes = validated.data.cortes;
+  const filtered = filterByDuration(rawCortes, minDurationMs, maxDurationMs).slice(0, maxCuts);
 
   return {
     videoId: transcription.videoId,
     model,
     cortes: filtered,
+    rawCount: rawCortes.length,
     tokensUsed,
   };
 }

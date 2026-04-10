@@ -29,6 +29,7 @@ export function CutForm({ onSubmit, processing }: Props) {
   const [maxCuts, setMaxCuts] = useState(3);
   const [lang, setLang] = useState("pt");
   const [instructions, setInstructions] = useState("");
+  const [subtitles, setSubtitles] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -39,6 +40,7 @@ export function CutForm({ onSubmit, processing }: Props) {
       maxCuts,
       maxDurationMs,
       instructions: instructions.trim() || undefined,
+      subtitles,
     });
   }
 
@@ -105,6 +107,22 @@ export function CutForm({ onSubmit, processing }: Props) {
             ))}
           </select>
         </div>
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.toggleLabel}>
+          <span className={styles.toggleTrack} data-on={subtitles}>
+            <span className={styles.toggleThumb} />
+          </span>
+          <input
+            type="checkbox"
+            className={styles.toggleInput}
+            checked={subtitles}
+            onChange={(e) => setSubtitles(e.target.checked)}
+            disabled={processing}
+          />
+          Queimar legendas no vídeo
+        </label>
       </div>
 
       <div className={styles.field}>

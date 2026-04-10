@@ -20,10 +20,13 @@ export async function* runPipeline(
     maxCuts,
     maxDurationMs,
     subtitleStyle,
+    subtitles,
     model,
   } = request;
 
-  const minDurationMs = Math.max(15_000, Math.round(maxDurationMs * 0.5));
+  // Use a fixed 15s floor so the duration filter doesn't silently discard
+  // cuts that are shorter than half the selected max duration.
+  const minDurationMs = 15_000;
   const resolvedStyle = SubtitleStyleSchema.parse(subtitleStyle ?? {});
 
   // ── Step 1: Transcription ──────────────────────────────────────────────────
@@ -52,11 +55,15 @@ export async function* runPipeline(
   });
 
   if (intelligence.cortes.length === 0) {
+    const rawCount = intelligence.rawCount ?? 0;
+    const detail = rawCount > 0
+      ? `A IA sugeriu ${rawCount} corte(s), mas todos ficaram fora da duração permitida (${(maxDurationMs / 1000).toFixed(0)}s máx). Tente aumentar a duração ou mudar as instruções.`
+      : "A IA não encontrou cortes adequados. Tente mudar as instruções ou aumentar a duração.";
     yield {
       type: "step",
       step: "intelligence",
       status: "done",
-      message: "A IA não encontrou cortes adequados. Tente ajustar as instruções ou a duração.",
+      message: detail,
     };
     yield { type: "done", successCount: 0, failCount: 0 };
     return;
@@ -106,6 +113,7 @@ export async function* runPipeline(
           tempo_final: corte.tempo_final,
           segments: transcription.segments,
           subtitleStyle: resolvedStyle,
+          noSubtitles: !subtitles,
           resolution: { width: 1080, height: 1920 },
         },
         () => {}

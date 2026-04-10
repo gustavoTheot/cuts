@@ -30,6 +30,7 @@ export interface PipelineRequest {
   instructions?: string;
   maxCuts?: number;
   maxDurationMs?: number;
+  subtitles?: boolean;
 }
 
 export type PipelineEvent =
@@ -62,6 +63,19 @@ export async function listCuts(page = 1, limit = 9): Promise<ListCutsResponse> {
 export async function deleteCut(id: string): Promise<void> {
   const res = await fetch(`${BASE}/cuts/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Erro ao remover corte: ${res.statusText}`);
+}
+
+export async function updateCut(
+  id: string,
+  data: { title?: string; description?: string | null }
+): Promise<CutItem> {
+  const res = await fetch(`${BASE}/cuts/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Erro ao atualizar corte: ${res.statusText}`);
+  return res.json() as Promise<CutItem>;
 }
 
 /**

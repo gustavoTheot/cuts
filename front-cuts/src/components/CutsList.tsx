@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { listCuts, deleteCut, type CutItem } from "../api/client.ts";
+import { listCuts, deleteCut, updateCut, type CutItem } from "../api/client.ts";
 import { CutCard } from "./CutCard.tsx";
 import styles from "./CutsList.module.css";
 
@@ -17,6 +17,14 @@ export function CutsList({ refreshTrigger }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+
+  const handleUpdate = useCallback(
+    async (id: string, data: { title?: string; description?: string | null }) => {
+      const updated = await updateCut(id, data);
+      setItems((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    },
+    []
+  );
 
   const load = useCallback(
     async (p: number) => {
@@ -96,6 +104,7 @@ export function CutsList({ refreshTrigger }: Props) {
                 key={cut.id}
                 cut={cut}
                 onDelete={handleDelete}
+                onUpdate={handleUpdate}
                 deleting={deletingIds.has(cut.id)}
               />
             ))}

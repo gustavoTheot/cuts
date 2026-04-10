@@ -1,9 +1,11 @@
+import { useState } from "react";
 import type { CutItem } from "../api/client.ts";
 import styles from "./CutCard.module.css";
 
 interface Props {
   cut: CutItem;
   onDelete: (id: string) => void;
+  onUpdate: (id: string, data: { title?: string; description?: string | null }) => Promise<void>;
   deleting: boolean;
 }
 
@@ -22,34 +24,78 @@ function formatDate(iso: string) {
   });
 }
 
-export function CutCard({ cut, onDelete, deleting }: Props) {
+export function CutCard({ cut, onDelete, onUpdate, deleting }: Props) {
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(cut.title);
+  const [editDesc, setEditDesc] = useState(cut.description ?? "");
+  const [saving, setSaving] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(true);
+
   const duration = formatMs(cut.durationMs);
   const start = formatMs(cut.startMs);
   const date = formatDate(cut.createdAt);
   const isReady = cut.status === "rendered" && cut.presignedUrl;
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await onUpdate(cut.id, {
+        title: editTitle.trim() || cut.title,
+        description: editDesc.trim() || null,
+      });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancelEdit() {
+    setEditTitle(cut.title);
+    setEditDesc(cut.description ?? "");
+    setEditing(false);
+  }
 
   return (
     <div className={styles.card}>
       {/* Thumbnail / preview */}
       <div className={styles.thumb}>
         {isReady ? (
-          <video
-            className={styles.video}
-            src={cut.presignedUrl!}
-            muted
-            playsInline
-            preload="metadata"
-            onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
-            onMouseLeave={(e) => {
-              const v = e.currentTarget as HTMLVideoElement;
-              v.pause();
-              v.currentTime = 0;
-            }}
-          />
+          <>
+            {videoLoading && (
+              <div className={styles.videoLoader}>
+                <span className={styles.spinMedium} />
+                <span className={styles.videoLoaderText}>Carregando…</span>
+              </div>
+            )}
+            <video
+              className={`${styles.video} ${videoLoading ? styles.videoHidden : ""}`}
+              src={cut.presignedUrl!}
+              muted
+              playsInline
+              preload="metadata"
+              onLoadedData={() => setVideoLoading(false)}
+              onCanPlay={() => setVideoLoading(false)}
+              onMouseEnter={(e) => (e.currentTarget as HTMLVideoElement).play()}
+              onMouseLeave={(e) => {
+                const v = e.currentTarget as HTMLVideoElement;
+                v.pause();
+                v.currentTime = 0;
+              }}
+            />
+          </>
         ) : (
           <div className={styles.noThumb}>
-            <ScissorsIcon />
-            <span>{cut.status}</span>
+            {cut.status === "processing" || cut.status === "captured" ? (
+              <>
+                <span className={styles.spinMedium} />
+                <span className={styles.noThumbText}>Processando…</span>
+              </>
+            ) : (
+              <>
+                <ScissorsIcon />
+                <span className={styles.noThumbText}>{cut.status}</span>
+              </>
+            )}
           </div>
         )}
         <span className={styles.duration}>{duration}</span>
@@ -57,12 +103,64 @@ export function CutCard({ cut, onDelete, deleting }: Props) {
 
       {/* Info */}
       <div className={styles.body}>
-        <h3 className={styles.title}>{cut.title}</h3>
+        {editing ? (
+          <div className={styles.editForm}>
+            <input
+              className={styles.editInput}
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Título"
+              maxLength={300}
+            />
+            <textarea
+              className={styles.editTextarea}
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              placeholder="Descrição (opcional)"
+              rows={3}
+              maxLength={2000}
+            />
+            <div className={styles.editActions}>
+              <button
+                className={styles.saveBtn}
+                onClick={handleSave}
+                disabled={saving || !editTitle.trim()}
+              >
+                {saving ? <SpinnerSmall /> : null}
+                Salvar
+              </button>
+              <button
+                className={styles.cancelBtn}
+                onClick={handleCancelEdit}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className={styles.titleRow}>
+              <h3 className={styles.title}>{cut.title}</h3>
+              <button
+                className={styles.editBtn}
+                onClick={() => setEditing(true)}
+                title="Editar título e descrição"
+              >
+                <PencilIcon />
+              </button>
+            </div>
+
+            {cut.description && (
+              <p className={styles.description}>{cut.description}</p>
+            )}
+          </>
+        )}
 
         <div className={styles.meta}>
           <span className={styles.metaItem}>
             <ClockIcon />
-            {duration}s
+            {duration}
           </span>
           <span className={styles.metaItem}>{date}, {start}</span>
         </div>
@@ -102,6 +200,15 @@ export function CutCard({ cut, onDelete, deleting }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
   );
 }
 
