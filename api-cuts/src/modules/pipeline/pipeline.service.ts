@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm";
+import { db } from "../../db/client.js";
+import { cuts as cutsTable } from "../../db/schema.js";
 import { getTranscription } from "../transcription/transcription.service.js";
 import { analyzeTranscript } from "../intelligence/intelligence.service.js";
 import { captureSection } from "../capture/capture.service.js";
@@ -6,6 +9,12 @@ import { SubtitleStyleSchema } from "../render/render.schema.js";
 import type { CaptureResponse } from "../capture/capture.schema.js";
 import type { RenderResponse } from "../render/render.schema.js";
 import type { PipelineRequest, PipelineEvent, ReadyCut } from "./pipeline.schema.js";
+
+function markFailed(cutId: string) {
+  try {
+    db.update(cutsTable).set({ status: "failed" }).where(eq(cutsTable.id, cutId)).run();
+  } catch { /* ignore */ }
+}
 
 /**
  * Generator that runs the full pipeline and yields SSE events at each step.
@@ -101,6 +110,7 @@ export async function* runPipeline(
       yield { type: "cut_ready", index: 0, cut };
       yield { type: "done", successCount: 1, failCount: 0 };
     } catch (err) {
+      if (captured?.id) markFailed(captured.id);
       const message = err instanceof Error ? err.message : String(err);
       yield { type: "cut_error", index: 0, titulo, message };
       yield { type: "done", successCount: 0, failCount: 1 };
@@ -150,7 +160,7 @@ export async function* runPipeline(
   if (intelligence.cortes.length === 0) {
     const rawCount = intelligence.rawCount ?? 0;
     const detail = rawCount > 0
-      ? `A IA sugeriu ${rawCount} corte(s), mas todos ficaram fora da duração permitida (${(maxDurationMs / 1000).toFixed(0)}s máx). Tente aumentar a duração ou mudar as instruções.`
+      ? `A IA sugeriu ${rawCount} corte(s), mas todos ficaram menores que 5s após processamento. Tente mudar as instruções.`
       : "A IA não encontrou cortes adequados. Tente mudar as instruções ou aumentar a duração.";
     yield { type: "step", step: "intelligence", status: "done", message: detail };
     yield { type: "done", successCount: 0, failCount: 0 };
@@ -235,6 +245,7 @@ export async function* runPipeline(
       yield { type: "cut_ready", index: i, cut };
       successCount++;
     } catch (err) {
+      if (captured?.id) markFailed(captured.id);
       const message = err instanceof Error ? err.message : String(err);
       yield { type: "cut_error", index: i, titulo, message };
       failCount++;

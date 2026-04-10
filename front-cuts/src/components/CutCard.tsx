@@ -107,15 +107,15 @@ export function CutCard({ cut, onDelete, onUpdate, onPublish, deleting }: Props)
           </>
         ) : (
           <div className={styles.noThumb}>
-            {cut.status === "processing" || cut.status === "captured" ? (
+            {cut.status === "failed" ? (
               <>
-                <span className={styles.spinMedium} />
-                <span className={styles.noThumbText}>Processando…</span>
+                <FailIcon />
+                <span className={styles.noThumbText}>Falhou</span>
               </>
             ) : (
               <>
-                <ScissorsIcon />
-                <span className={styles.noThumbText}>{cut.status}</span>
+                <span className={styles.spinMedium} />
+                <span className={styles.noThumbText}>Processando…</span>
               </>
             )}
           </div>
@@ -216,6 +216,8 @@ export function CutCard({ cut, onDelete, onUpdate, onPublish, deleting }: Props)
                 <ShareIcon />
               </button>
             </>
+          ) : cut.status === "failed" ? (
+            <span className={`${styles.statusBadge} ${styles.statusFailed}`}>Falhou</span>
           ) : (
             <span className={styles.statusBadge}>{cut.status}</span>
           )}
@@ -300,4 +302,14 @@ function ScissorsIcon() {
 
 function SpinnerSmall() {
   return <span className={styles.spinSmall} />;
+}
+
+function FailIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  );
 }

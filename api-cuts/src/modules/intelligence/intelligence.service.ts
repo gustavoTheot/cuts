@@ -144,19 +144,17 @@ function filterByDuration(
   minDurationMs: number,
   maxDurationMs: number
 ): Cut[] {
+  const ABSOLUTE_MIN_MS = 5_000; // never accept clips shorter than 5s regardless of LLM output
   return cuts
     .map((c) => {
       const duration = c.tempo_final - c.tempo_inicial;
-      // Truncate clips that are slightly over the max instead of discarding them
+      // Truncate clips that are over the max — never discard them
       if (duration > maxDurationMs) {
         return { ...c, tempo_final: c.tempo_inicial + maxDurationMs };
       }
       return c;
     })
-    .filter((c) => {
-      const duration = c.tempo_final - c.tempo_inicial;
-      return duration >= minDurationMs;
-    });
+    .filter((c) => c.tempo_final - c.tempo_inicial >= ABSOLUTE_MIN_MS);
 }
 
 // ── Main service function ─────────────────────────────────────────────────────

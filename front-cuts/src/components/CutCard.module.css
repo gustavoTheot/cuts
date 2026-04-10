@@ -59,6 +59,11 @@
   background: var(--surface2);
 }
 
+.noThumb:has(.failIcon) {
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.06);
+}
+
 .noThumbText {
   font-size: 11px;
   text-transform: capitalize;

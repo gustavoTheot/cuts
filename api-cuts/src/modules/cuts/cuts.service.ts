@@ -1,4 +1,4 @@
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and, lt } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { cuts } from "../../db/schema.js";
 import { minioClient } from "../../storage/minio.js";
@@ -30,6 +30,13 @@ export async function listCuts(
 }> {
   const { page, limit } = query;
   const offset = (page - 1) * limit;
+
+  // Auto-cleanup: cuts stuck in "captured" for more than 30 min will never complete
+  const staleThreshold = new Date(Date.now() - 30 * 60 * 1000);
+  db.update(cuts)
+    .set({ status: "failed" })
+    .where(and(eq(cuts.status, "captured"), lt(cuts.createdAt, staleThreshold)))
+    .run();
 
   const countRow = db
     .select({ total: sql<number>`count(*)` })
