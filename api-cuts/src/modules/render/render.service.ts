@@ -75,11 +75,14 @@ async function buildPresignedUrl(storageKey: string): Promise<string> {
 // ── ffmpeg pipeline ───────────────────────────────────────────────────────────
 
 /**
- * Runs the full rendering pipeline:
- *   1. Crop 16:9 → 9:16 (center-crop the portrait column)
- *   2. Scale to target resolution (default 1080×1920)
- *   3. Optionally burn ASS subtitles
- *   4. Encode to H.264/AAC MP4 optimised for streaming
+ * Runs the full rendering pipeline using the "blur background" technique:
+ *   1. Background: video scaled to fill 9:16, center-cropped, heavily blurred
+ *   2. Foreground: video scaled to fit inside 9:16 (preserves full frame / no cropping)
+ *   3. Foreground overlaid centered on background
+ *   4. Optionally burn ASS subtitles
+ *   5. Encode to H.264/AAC MP4 optimised for streaming
+ *
+ * This avoids the hard center-crop that cuts off people at the edges of frame.
  */
 function render(
   inputPath: string,
@@ -90,24 +93,41 @@ function render(
   log: (msg: string) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const filters = [
-      `crop=ih*${width}/${height}:ih:(iw-ih*${width}/${height})/2:0`,
-      `scale=${width}:${height}`,
+    // ── Complex filtergraph ─────────────────────────────────────────────────
+    //
+    //  [bg_in] → scale to fill portrait → center-crop → heavy blur → [bg]
+    //  [fg_in] → scale to fit portrait (no crop)                   → [fg]
+    //  [bg][fg] → overlay centered                                 → [composed]
+    //  [composed] → optional subtitle burn                         → [out]
+
+    const complexFilters: string[] = [
+      // Split input into two identical streams
+      `[0:v]split[bg_in][fg_in]`,
+
+      // Background: fill the 9:16 canvas, crop to exact size, blur
+      `[bg_in]scale=${width}:${height}:force_original_aspect_ratio=increase,` +
+        `crop=${width}:${height},` +
+        `boxblur=luma_radius=25:luma_power=2[bg]`,
+
+      // Foreground: scale to fit inside portrait frame — full video visible
+      `[fg_in]scale=${width}:${height}:force_original_aspect_ratio=decrease[fg]`,
     ];
 
+    // Overlay + optional subtitles
+    const overlayBase = `[bg][fg]overlay=(W-overlay_w)/2:(H-overlay_h)/2`;
     if (subtitlePath) {
-      // Escape the subtitle path for the ffmpeg subtitles filter.
-      // On Unix only colons and backslashes need escaping inside filter values.
       const escapedSubPath = subtitlePath
         .replace(/\\/g, "\\\\")
         .replace(/:/g, "\\:");
-      filters.push(`subtitles='${escapedSubPath}'`);
+      complexFilters.push(`${overlayBase},subtitles='${escapedSubPath}'[out]`);
+    } else {
+      complexFilters.push(`${overlayBase}[out]`);
     }
 
-    const vf = filters.join(",");
-
     ffmpeg(inputPath)
-      .videoFilter(vf)
+      .complexFilter(complexFilters, "out")
+      // complexFilter disables automatic stream mapping — must map audio explicitly
+      .addOutputOption("-map 0:a?")
       // H.264, fast preset, CRF 23 → good quality for social media at ~2–4 Mbps
       .videoCodec("libx264")
       .addOutputOption("-preset fast")
