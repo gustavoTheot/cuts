@@ -15,6 +15,7 @@ const EnvSchema = z.object({
   MINIO_USE_SSL: z.string().transform((v) => v === "true" || v === "1").default("false"),
   OPENROUTER_API_KEY: z.string().min(1),
   OPENROUTER_MODEL: z.string().default("google/gemini-2.0-flash-001"),
+  PEXELS_API_KEY: z.string().min(1),
   // OAuth — optional, only required when using social publishing
   YOUTUBE_CLIENT_ID: z.string().default(""),
   YOUTUBE_CLIENT_SECRET: z.string().default(""),

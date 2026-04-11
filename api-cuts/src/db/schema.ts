@@ -41,6 +41,16 @@ export const socialAccounts = sqliteTable("social_accounts", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 }, (t) => ({ uniqPlatform: unique().on(t.platform) }));
 
+export const narratedVideos = sqliteTable("narrated_videos", {
+  id: text("id").primaryKey(),
+  tema: text("tema").notNull(),
+  script: text("script").notNull().default(""),
+  storageKey: text("storage_key"),
+  /** processing | done | failed */
+  status: text("status").notNull().default("processing"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
 export const socialPosts = sqliteTable("social_posts", {
   id: text("id").primaryKey(),
   cutId: text("cut_id").notNull().references(() => cuts.id, { onDelete: "cascade" }),

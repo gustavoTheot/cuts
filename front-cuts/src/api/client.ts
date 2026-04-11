@@ -145,6 +145,95 @@ export async function getSocialPosts(cutId: string): Promise<SocialPost[]> {
   return data.posts;
 }
 
+// ── Narrated Videos ───────────────────────────────────────────────────────────
+
+export interface NarratedRequest {
+  tema: string;
+  voz?: "pt-BR-AntonioNeural" | "pt-BR-FranciscaNeural";
+}
+
+export interface NarratedItem {
+  id: string;
+  tema: string;
+  script: string;
+  storageKey: string | null;
+  status: string;
+  createdAt: number;
+}
+
+export type NarratedEvent =
+  | { type: "start"; message: string }
+  | { type: "step"; step: "script" | "media" | "render" | "upload"; status: "running" | "done"; message: string }
+  | { type: "done"; id: string; presignedUrl: string; script: string }
+  | { type: "error"; message: string };
+
+export async function listNarrated(): Promise<NarratedItem[]> {
+  const res = await fetch(`${BASE}/narrated`);
+  if (!res.ok) throw new Error(`Erro ao listar histórias: ${res.statusText}`);
+  const data = (await res.json()) as { items: NarratedItem[] };
+  return data.items;
+}
+
+export function startNarrated(
+  request: NarratedRequest,
+  onEvent: (event: NarratedEvent) => void,
+  onClose: () => void
+): () => void {
+  let aborted = false;
+  const controller = new AbortController();
+
+  (async () => {
+    const res = await fetch(`${BASE}/narrated/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    });
+
+    if (!res.ok || !res.body) {
+      onEvent({ type: "error", message: `Erro HTTP ${res.status}` });
+      onClose();
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done || aborted) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+
+      for (const part of parts) {
+        const line = part.replace(/^data: /, "").trim();
+        if (!line || line.startsWith(":")) continue;
+        try {
+          const parsed = JSON.parse(line) as NarratedEvent;
+          onEvent(parsed);
+        } catch {
+          // malformed SSE line — ignore
+        }
+      }
+    }
+
+    onClose();
+  })().catch((err: unknown) => {
+    if (aborted) return;
+    const msg = err instanceof Error ? err.message : String(err);
+    onEvent({ type: "error", message: msg });
+    onClose();
+  });
+
+  return () => {
+    aborted = true;
+    controller.abort();
+  };
+}
+
 /**
  * Opens an SSE connection to the pipeline endpoint.
  * Calls onEvent for each SSE message and onClose when the stream ends.
