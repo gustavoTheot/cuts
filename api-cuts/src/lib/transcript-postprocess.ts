@@ -38,6 +38,7 @@ export function mergeIntoSentences(words: TranscriptSegment[]): TranscriptSegmen
     if (buf.length === 0) return;
     const first = buf[0];
     const last = buf[buf.length - 1];
+    if (!first || !last) return;
     result.push({
       text: buf.map((w) => w.text).join(" ").replace(/\s{2,}/g, " ").trim(),
       offset: first.offset,
@@ -49,9 +50,10 @@ export function mergeIntoSentences(words: TranscriptSegment[]): TranscriptSegmen
   for (const word of words) {
     const prev = buf[buf.length - 1];
 
-    if (prev) {
+    const firstInBuf = buf[0];
+    if (prev && firstInBuf) {
       const gap = word.offset - (prev.offset + prev.duration);
-      const accDuration = prev.offset + prev.duration - buf[0].offset;
+      const accDuration = prev.offset + prev.duration - firstInBuf.offset;
 
       const hasPause = gap > PAUSE_BOUNDARY_MS;
       const atMaxDuration = accDuration >= MAX_SENTENCE_MS;

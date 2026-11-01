@@ -32,6 +32,8 @@ export interface SubtitleStyle {
   wordsPerGroup?: number;
   /** Whether to uppercase the text (default true) */
   uppercase?: boolean;
+  /** Max characters per subtitle line (from SubtitleStyleSchema, default 40) */
+  maxCharsPerLine?: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────

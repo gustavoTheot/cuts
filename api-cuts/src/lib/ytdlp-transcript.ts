@@ -60,6 +60,7 @@ export function parseJson3(raw: string): TranscriptSegment[] {
     // Word-level timing available: emit one segment per word
     for (let i = 0; i < textSegs.length; i++) {
       const seg = textSegs[i];
+      if (!seg) continue;
       const text = seg.utf8.replace(/\n/g, " ").trim();
       if (!text) continue;
 
@@ -138,6 +139,7 @@ export async function fetchTranscriptViaYtDlp(
     const subFile =
       files.find((f) => !f.includes(".auto.") && !f.includes(".orig.")) ??
       files[0];
+    if (!subFile) throw new Error(`No json3 subtitle found for lang=${lang}`);
 
     const raw = readFileSync(join(tmpDir, subFile), "utf8");
     return parseJson3(raw);
